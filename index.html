@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Simulacro Parcial</title>
+    <link rel='stylesheet' href='https://code.jquery.com/ui/1.11.1/themes/smoothness/jquery-ui.css'>
+    <script src='https://code.jquery.com/jquery-1.12.4.js'></script>
+    <script src='https://code.jquery.com/ui/1.12.1/jquery-ui.js'></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px 10px;
+            text-align: left;
+        }
+
+        thead {
+            background-color: #f2f2f2;
+        }
+
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        input {
+            padding: 4px;
+            width: 95%;
+        }
+
+        button {
+            padding: 5px 10px;
+            margin: 2px;
+            cursor: pointer;
+            border: 1px solid #888;
+            border-radius: 3px;
+            background-color: #f2f2f2;
+        }
+
+        button:hover {
+            background-color: #e0e0e0;
+        }
+
+        #popUp {
+            font-size: 14px;
+            padding: 10px;
+        }
+
+        #popUp table td {
+            padding: 5px;
+        }
+    </style>
+
+    <script>
+        const url = 'https://jsonplaceholder.typicode.com/photos'
+
+        window.onload = function () {
+            $('#popUp').hide()
+            getObjects()
+        }
+
+        //promesa//
+
+        function loadObjects() {
+            return new Promise(function (resolve, reject) {
+                var request = new XMLHttpRequest()
+                request.open('GET', url)
+                request.responseType = 'json'
+                request.onload = function () {
+                    if (request.status == 200) {
+                        resolve(request.response)
+                    } else {
+                        reject(Error(request.statusText))
+                    }
+                }
+                request.onerror = function () {
+                    reject(Error('Error: unexpected network error.'))
+                }
+                request.send()
+            })
+        }
+
+        function addObject() {
+            return new Promise(function (resolve, reject) {
+                var request = new XMLHttpRequest()
+                request.open('POST', url)
+                request.setRequestHeader('Content-Type', 'application/json')
+                var object = JSON.stringify({
+                    'title': document.getElementById('title').value,
+                    'thumbnailUrl': document.getElementById('thumbnailUrl').value
+                })
+                request.onload = function () {
+                    if (request.status == 201) {
+                        resolve(request.response)
+                    } else {
+                        reject(Error(request.statusText))
+                    }
+                }
+                request.onerror = function () {
+                    reject(Error('Error: unexpected network error.'))
+                }
+                request.send(object)
+            })
+        }
+
+        function removeObject(id) {
+            return new Promise(function (resolve, reject) {
+                var request = new XMLHttpRequest()
+                request.open('DELETE', url + `/${id}`)
+                request.onload = function () {
+                    if (request.status == 200) {
+                        resolve(request.response)
+                    } else {
+                        reject(Error(request.statusText))
+                    }
+                }
+                request.onerror = function () {
+                    reject(Error('Error: unexpected network error.'))
+                }
+                request.send()
+            })
+        }
+
+        function modifyObject() {
+            return new Promise(function (resolve, reject) {
+                var request = new XMLHttpRequest()
+                request.open('PATCH', url + `/${document.getElementsByName('id2')[0].value}`)
+                request.setRequestHeader('Content-Type', 'application/json')
+                var object = JSON.stringify({
+                    'title': document.getElementsByName('title2')[0].value,
+                    'thumbnailUrl': document.getElementsByName('thumbnailUrl2')[0].value
+                })
+                request.onload = function () {
+                    if (request.status == 200) {
+                        resolve(request.response)
+                    } else {
+                        reject(Error(request.statusText))
+                    }
+                }
+                request.onerror = function () {
+                    reject(Error('Error: unexpected network error.'))
+                }
+                request.send(object)
+            })
+        }
+
+        //funciones de las promesas//
+
+        function getObjects() {
+            loadObjects().then(response => {
+                var tbody = document.querySelector('tbody')
+                tbody.innerHTML = ''
+                response.slice(0, 20).forEach(object => { // limitamos a 20
+                    insertTr(object)
+                })
+            }).catch(reason => {
+                console.error(reason)
+            })
+        }
+
+        function saveObject() {
+            if (document.getElementById('title').value.trim() !== '' &&
+                document.getElementById('thumbnailUrl').value.trim() !== '') {
+                addObject().then((response) => {
+                    var object = JSON.parse(response)
+                    insertTr(object)
+                }).catch(reason => {
+                    console.error(reason)
+                })
+            }
+        }
+
+        function deleteObject(object) {
+            removeObject(object.id).then(() => {
+                var rows = document.querySelectorAll('tr')
+                rows.forEach(row => {
+                    if (parseInt(row.getAttribute('id')) === parseInt(object.id)) {
+                        row.remove()
+                        clearInputs()
+                    }
+                })
+            }).catch(reason => {
+                console.error(reason)
+            })
+        }
+
+        function updateObject() {
+            if (document.getElementsByName('title2')[0].value.trim() !== '' &&
+                document.getElementsByName('thumbnailUrl2')[0].value.trim() !== '') {
+                modifyObject().then(() => {
+                    var rows = document.querySelectorAll('tr')
+                    rows.forEach(row => {
+                        if (row.getAttribute('id') === document.getElementsByName('id2')[0].value) {
+                            row.childNodes[1].innerHTML = document.getElementsByName('title2')[0].value
+                            row.childNodes[2].innerHTML = `<img src="${document.getElementsByName('thumbnailUrl2')[0].value}" width="50">`
+                        }
+                    })
+                    $('#popUp').dialog('close')
+                    clearInputs()
+                }).catch(reason => {
+                    console.error(reason)
+                })
+            }
+        }
+
+        //funciones de agregado//
+
+        function insertTr(object) {
+            var tbody = document.querySelector('tbody')
+            var row = tbody.insertRow()
+            row.setAttribute('id', object.id)
+            var id = row.insertCell()
+            id.innerHTML = object.id
+            var title = row.insertCell()
+            title.innerHTML = object.title
+            var thumb = row.insertCell()
+            thumb.innerHTML = `<img src="${object.thumbnailUrl}" width="50">`
+            var view = row.insertCell()
+            view.innerHTML = `<button onclick='viewObject(${JSON.stringify(object)})'>VIEW</button>`
+            var del = row.insertCell()
+            del.innerHTML = `<button onclick='deleteObject(${JSON.stringify(object)})'>DELETE</button>`
+            clearInputs()
+        }
+
+        function viewObject(object) {
+            document.getElementsByName('id2')[0].value = object.id
+            document.getElementsByName('title2')[0].value = object.title
+            document.getElementsByName('thumbnailUrl2')[0].value = object.thumbnailUrl
+            $('#popUp').dialog({
+                closeText: ''
+            }).css('font-size', '15px')
+        }
+
+        function clearInputs() {
+            document.getElementById('title').value = ''
+            document.getElementById('thumbnailUrl').value = ''
+            document.getElementById('title').focus()
+        }
+    </script>
+</head>
+
+<body>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>TITLE</th>
+                <th>THUMB</th>
+                <th colspan="2"></th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+            <tr>
+                <td></td>
+                <td><input id='title' placeholder="Titulo"></td>
+                <td><input id='thumbnailUrl' placeholder="URL Min"></td>
+                <td colspan='6' style='text-align: center'><button onclick='saveObject()'>ADD</button></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div id='popUp' style="overflow-x: hidden">
+        <table>
+            <tr>
+                <td><label for='id2' style='font-weight: bold'>ID</label></td>
+                <td><input name='id2' readonly style='text-align: right'></td>
+            </tr>
+            <tr>
+                <td><label for='title2' style='font-weight: bold'>TITLE</label></td>
+                <td><input name='title2' style='text-align: right'></td>
+            </tr>
+            <tr>
+                <td><label for='thumbnailUrl2' style='font-weight: bold'>THUMB URL</label></td>
+                <td><input name='thumbnailUrl2' style='text-align: right'></td>
+            </tr>
+            <tr>
+                <td colspan='2' style='text-align: center'><button onclick='updateObject()'>UPDATE</button></td>
+            </tr>
+        </table>
+    </div>
+</body>
+
+</html>
